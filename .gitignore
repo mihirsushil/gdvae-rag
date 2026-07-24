@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+data/raw/
+data/chunks.jsonl
+data/index.faiss
+data/bm25.pkl

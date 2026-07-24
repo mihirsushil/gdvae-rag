@@ -1,0 +1,18 @@
+{"question": "What function implements the analytic map to the Clifford torus?", "expected_sources": ["src/geo_map.py"]}
+{"question": "How does GD-VAE represent a manifold latent space using a point cloud instead of an analytic formula?", "expected_sources": ["src/geo_map.py"]}
+{"question": "What loss function combines reconstruction and prediction terms for training the dynamic VAE?", "expected_sources": ["src/vae.py"]}
+{"question": "How is the KL divergence term computed for the GD-VAE variational approximation?", "expected_sources": ["src/vae.py"]}
+{"question": "What neural network architectures are available for the encoder and decoder, like MLPs and CNNs?", "expected_sources": ["src/nn.py", "paper/paper.md"]}
+{"question": "How do you install the GD-VAE package with pip?", "expected_sources": ["README.md"]}
+{"question": "What is the citation for the GD-VAE journal paper?", "expected_sources": ["README.md"]}
+{"question": "What example demonstrates learning representations of non-linear Burgers' PDE dynamics?", "expected_sources": ["burgers_pde1", "paper/paper.md"]}
+{"question": "What example demonstrates constrained mechanical systems?", "expected_sources": ["constrained_mechanics1", "paper/paper.md"]}
+{"question": "How is a Klein bottle manifold represented in the examples?", "expected_sources": ["manifold_map1"]}
+{"question": "What modules is the GD-VAEs package organized into, such as geo-map, vae, and nn?", "expected_sources": ["paper/paper.md"]}
+{"question": "What funding sources supported the GD-VAE research?", "expected_sources": ["README.md"]}
+{"question": "What is the reparameterization trick and why is it used in variational autoencoders?", "expected_sources": ["vae_kingma_welling.pdf"]}
+{"question": "What is the evidence lower bound (ELBO) in variational inference?", "expected_sources": ["vae_kingma_welling.pdf", "src/vae.py"]}
+{"question": "What is geometric deep learning and what does the 5G framework (Grids, Groups, Graphs, Geodesics, Gauges) refer to?", "expected_sources": ["geometric_deep_learning_survey.pdf"]}
+{"question": "How does GD-VAE compute gradients through a point cloud manifold representation using a custom autograd function?", "expected_sources": ["src/geo_map.py"]}
+{"question": "What utility function saves a matplotlib figure to disk?", "expected_sources": ["src/utils.py"]}
+{"question": "What relative loss function is defined in the vae module?", "expected_sources": ["src/vae.py"]}
