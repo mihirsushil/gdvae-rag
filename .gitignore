@@ -5,3 +5,4 @@ data/raw/
 data/chunks.jsonl
 data/index.faiss
 data/bm25.pkl
+.DS_Store
