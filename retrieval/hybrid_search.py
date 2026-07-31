@@ -9,6 +9,8 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from retrieval.tokenize import tokenize as _tokenize
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CHUNKS_PATH = REPO_ROOT / "data" / "chunks.jsonl"
 FAISS_PATH = REPO_ROOT / "data" / "index.faiss"
@@ -21,10 +23,6 @@ RRF_K = 60
 FUSED_CANDIDATES = 20
 DENSE_TOP_N = 30
 SPARSE_TOP_N = 30
-
-
-def _tokenize(text: str) -> list[str]:
-    return text.lower().split()
 
 
 @lru_cache(maxsize=1)

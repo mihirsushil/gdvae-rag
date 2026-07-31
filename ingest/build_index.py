@@ -2,6 +2,7 @@
 
 import json
 import pickle
+import sys
 from pathlib import Path
 
 import faiss
@@ -10,6 +11,9 @@ from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+
+from retrieval.tokenize import tokenize  # noqa: E402
 CHUNKS_PATH = REPO_ROOT / "data" / "chunks.jsonl"
 FAISS_PATH = REPO_ROOT / "data" / "index.faiss"
 BM25_PATH = REPO_ROOT / "data" / "bm25.pkl"
@@ -20,10 +24,6 @@ EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 def load_chunks() -> list[dict]:
     with CHUNKS_PATH.open() as f:
         return [json.loads(line) for line in f]
-
-
-def tokenize(text: str) -> list[str]:
-    return text.lower().split()
 
 
 def build_dense_index(chunks: list[dict]) -> None:
