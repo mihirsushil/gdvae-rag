@@ -63,11 +63,11 @@ claude mcp add gdvae-rag -s user -- "$(pwd)/.venv/bin/python3" "$(pwd)/server.py
 
 18 hand-written questions spanning code (`src/*.py`), repo docs, and the three papers, checked against **Recall@5**: does a correctly-sourced chunk appear in the top 5 results?
 
-**Recall@5: 16/18 (88.9%)** — run with `.venv/bin/python3 eval/run_eval.py`
+**Recall@5: 15/18 (83.3%)** — run with `.venv/bin/python3 eval/run_eval.py`
 
-The two misses are informative rather than embarrassing: one question's "correct" source was labeled too strictly (a background-paper chunk that also legitimately answered it wasn't counted), and the other missed a specific point-cloud-mapping chunk in favor of adjacent, related ones.
+The misses are informative rather than embarrassing: they're mostly paper/citation questions where a background-paper chunk that also legitimately answers the question isn't the one labeled "correct," or where a point-cloud-mapping chunk loses out to adjacent, related ones. Recall dipped slightly after fixing the tokenizer below — expected, since re-tokenizing the whole corpus reshuffles BM25's rankings everywhere, not just for the query it was fixed for. Worth the trade: exact-identifier lookups are a more important guarantee for a code-search tool than a couple points of recall on paraphrase-heavy questions.
 
-**Spot check — why hybrid, not just one retriever:** querying the exact function name `map_clifford_torus` shows BM25 *alone* completely missing `src/geo_map.py` (its whitespace-only tokenizer keeps the trailing `(input,params):` glued to the identifier, so the token never matches), while dense embeddings find it immediately on semantic similarity. Hybrid fusion recovers the correct file in 3 of the top 5 slots. This is the opposite of the textbook "BM25 wins on exact terms" story — it's a real illustration of why relying on a single retrieval strategy is risky, not a hypothetical one.
+**Spot check — why hybrid, not just one retriever:** querying the exact function name `map_clifford_torus`, BM25 alone now finds `src/geo_map.py` (tokenization was fixed to stop gluing trailing punctuation like `(input,params):` onto identifiers — see `retrieval/tokenize.py` and `tests/test_retrieval.py`), and dense embeddings find it immediately on semantic similarity regardless. Hybrid fusion puts the correct file in 3 of the top 5 slots. Before the fix, BM25 alone completely missed it — a real illustration of why relying on a single retrieval strategy, or trusting a naive tokenizer, is risky.
 
 ## Design notes
 

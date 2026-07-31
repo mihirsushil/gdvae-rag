@@ -67,7 +67,7 @@ Vectors are **normalized** before indexing, which makes inner product equivalent
 When `search(query)` runs:
 
 1. **Dense search** — embed the query, ask FAISS for the top 30 chunks by cosine similarity.
-2. **Sparse search** — tokenize the query (lowercase, split on whitespace), ask BM25 for the top 30 by keyword score.
+2. **Sparse search** — tokenize the query (lowercase, extract runs of `[a-z0-9_]` so identifiers survive but surrounding punctuation doesn't — see `retrieval/tokenize.py`), ask BM25 for the top 30 by keyword score.
 3. **Reciprocal Rank Fusion (RRF)** — merge the two ranked lists into one. Each chunk's fused score is `sum of 1/(60 + rank)` across every list it appears in (rank 0-indexed, `60` is a smoothing constant). A chunk ranked #1 in both lists scores far higher than one ranked #1 in only one list.
 
 **Why RRF instead of just averaging or weighting the two raw scores:** cosine similarity scores and BM25 scores live on completely different, incompatible scales (cosine is bounded [-1, 1]; BM25 is an unbounded, corpus-dependent number). Combining them numerically would require normalizing both onto a comparable scale — fragile and dataset-dependent. RRF sidesteps the whole problem because it only cares about *rank position*, not the underlying score magnitude, so it needs zero tuning to work reasonably well.
@@ -111,11 +111,11 @@ The hybrid step returns 20 candidates — good recall (the right answer is *prob
 
 **Recall@5** is the metric: for each test question, is a chunk from the *correct* source document present somewhere in the top 5 results? This measures retrieval quality specifically — it doesn't test whether an LLM's final synthesized answer is good, just whether the system found the right raw material for it to work with. That's a deliberate scope choice: retrieval quality and generation quality are separable, and this project is about the retrieval half.
 
-18 hand-written questions spanning code, repo docs, and all 3 papers → **16/18 = 88.9%**.
+18 hand-written questions spanning code, repo docs, and all 3 papers → **15/18 = 83.3%**.
 
-**The spot check is the more interesting result.** Querying the literal function name `map_clifford_torus` (an exact-term query, exactly BM25's supposed home turf) showed BM25 *alone* completely failing to find it. Why: BM25's tokenizer here is a naive `.lower().split()` on whitespace — it doesn't strip punctuation. So in the source line `def map_clifford_torus(input,params):`, the token is literally `map_clifford_torus(input,params):`, not `map_clifford_torus` — the query term never exact-matches anything. Dense search found it immediately, because embeddings work on meaning/subword structure, not exact string matching, so punctuation glued to an identifier doesn't break it. Hybrid fusion recovered the correct file in 3 of the top 5 slots.
+**The spot check is the more interesting result — and it used to tell a different story.** Querying the literal function name `map_clifford_torus` (an exact-term query, exactly BM25's supposed home turf) originally showed BM25 *alone* completely failing to find it. Why: the tokenizer was a naive `.lower().split()` on whitespace — it didn't strip punctuation. So in the source line `def map_clifford_torus(input,params):`, the token was literally `map_clifford_torus(input,params):`, not `map_clifford_torus` — the query term never exact-matched anything. Dense search found it immediately, because embeddings work on meaning/subword structure, so punctuation glued to an identifier doesn't break it. That was worth remembering specifically because it was the *opposite* of the textbook pitch for hybrid search ("BM25 wins on exact terms, embeddings win on meaning") — a genuinely more interesting and defensible story than the textbook one, because it came from actually running the system, not from reciting theory.
 
-This is worth remembering specifically because it's the *opposite* of the textbook pitch for hybrid search ("BM25 wins on exact terms, embeddings win on meaning") — here embeddings rescued a case where the sparse retriever's naive tokenizer broke on exact terms. That's a genuinely more interesting and defensible story than the textbook one, because it came from actually running the system, not from reciting theory.
+That gap is now fixed (`retrieval/tokenize.py` extracts `[a-z0-9_]+` runs instead of splitting on whitespace, so punctuation no longer glues onto identifiers), with a regression test (`tests/test_retrieval.py`) pinning the behavior down so it can't silently regress. BM25 alone now finds `src/geo_map.py` for this query too. The trade-off: re-tokenizing the whole corpus reshuffled BM25's rankings everywhere, not just for this query, which cost a couple points of overall Recall@5 (16/18 → 15/18) on unrelated paraphrase-heavy questions. Worth it — exact-identifier lookup is a correctness guarantee a code-search tool shouldn't be missing, and the alternative (leaving the bug in) was a landmine for any future query that happened to hit it.
 
 ---
 
@@ -137,7 +137,7 @@ Fixed windows can and do split a function signature from its body, or a docstrin
 Swap the flat FAISS index for an approximate one (IVF/HNSW) to keep search sub-linear, and BM25 would need a real inverted-index engine (rather than `rank_bm25`'s in-memory Python approach, which recomputes scores by scanning). The chunking/fusion/rerank architecture wouldn't need to change.
 
 **"What's the actual weakness in this system?"**
-Two honest ones: (1) BM25's tokenizer is naive — punctuation-adjacent identifiers can be missed, as the spot check showed; a proper tokenizer (e.g. splitting on `[\W_]+` or reusing the embedding model's subword tokenizer) would fix it. (2) Recall@5 only validates that the *retriever* found the right passage — it says nothing about whether the *final synthesized answer* (once Claude reads the retrieved chunks) is actually correct; that would need a separate answer-quality eval (e.g. an LLM-judge comparing generated answers to reference answers).
+One honest one now: Recall@5 only validates that the *retriever* found the right passage — it says nothing about whether the *final synthesized answer* (once Claude reads the retrieved chunks) is actually correct; that would need a separate answer-quality eval (e.g. an LLM-judge comparing generated answers to reference answers). (The tokenizer used to be the other weakness — punctuation-adjacent identifiers could be missed — but that's fixed now; see the evaluation section above.)
 
 ---
 
