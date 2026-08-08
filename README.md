@@ -32,18 +32,37 @@ fetch → chunk → embed + index (dense & sparse) → hybrid search → re-rank
   - `get_document(source)` — full text of one source
   - `list_sources()` — everything in the corpus
 
-## Setup
+## Running locally
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+**Prerequisites:** Python 3.10+, `git`, and [Claude Code](https://claude.com/product/claude-code) (or Claude Desktop) with its `claude` CLI on your PATH — that's what calls the MCP server once it's registered.
 
-.venv/bin/python3 ingest/fetch_sources.py   # clone repo + download papers
-.venv/bin/python3 ingest/chunk.py            # -> data/chunks.jsonl
-.venv/bin/python3 ingest/build_index.py      # -> data/index.faiss, data/bm25.pkl
+1. **Clone this repo and step into it**
+   ```bash
+   git clone https://github.com/mihirsushil/gdvae-rag.git
+   cd gdvae-rag
+   ```
 
-claude mcp add gdvae-rag -s user -- "$(pwd)/.venv/bin/python3" "$(pwd)/server.py"
-```
+2. **Create a virtual environment and install dependencies**
+   ```bash
+   python3 -m venv .venv
+   .venv/bin/pip install -r requirements.txt
+   ```
+
+3. **Build the corpus and indexes** — clones the GD-VAE repo, downloads the papers, chunks everything, and embeds/indexes it (dense + BM25). Takes a few minutes; only needs to be run once.
+   ```bash
+   .venv/bin/python3 ingest/fetch_sources.py   # clone repo + download papers
+   .venv/bin/python3 ingest/chunk.py            # -> data/chunks.jsonl
+   .venv/bin/python3 ingest/build_index.py      # -> data/index.faiss, data/bm25.pkl
+   ```
+
+4. **Register the server with Claude Code**
+   ```bash
+   claude mcp add gdvae-rag -s user -- "$(pwd)/.venv/bin/python3" "$(pwd)/server.py"
+   ```
+
+5. **Use it** — start a Claude Code session anywhere and just ask a question about GD-VAE (e.g. "what is the adjoint method used for in GD-VAE?"). Claude calls the `search` tool on this server automatically and answers with citations back to the source chunk — no separate step to "run" the server yourself.
+
+To remove it later: `claude mcp remove gdvae-rag -s user`.
 
 ## Example
 
