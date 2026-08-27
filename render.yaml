@@ -1,0 +1,24 @@
+services:
+  # Browser demo — hybrid search + rerank, with a rate-limited plain-language
+  # summary layer on top (web/app.py). This is the recruiter-facing link.
+  - type: web
+    name: gdvae-rag-demo
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false # set manually in the Render dashboard — never commit this
+
+  # Remote MCP server — same retrieval pipeline, exposed over streamable-http
+  # so anyone can point their own Claude client at it instead of running it
+  # locally (see README "Connecting remotely").
+  - type: web
+    name: gdvae-rag-mcp
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python server.py
+    plan: free
+    envVars:
+      - key: MCP_TRANSPORT
+        value: streamable-http

@@ -1,6 +1,7 @@
 """GD-VAE research RAG — MCP server backed by a custom hybrid search + rerank pipeline."""
 
 import json
+import os
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -77,4 +78,15 @@ def list_sources() -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport == "streamable-http":
+        mcp.settings.host = "0.0.0.0"
+        mcp.settings.port = int(os.environ.get("PORT", 8000))
+        mcp.settings.stateless_http = True
+
+        external_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+        if external_host:
+            mcp.settings.transport_security.allowed_hosts += [external_host, f"{external_host}:*"]
+            mcp.settings.transport_security.allowed_origins += [f"https://{external_host}"]
+
+    mcp.run(transport=transport)

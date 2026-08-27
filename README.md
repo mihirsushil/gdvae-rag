@@ -4,6 +4,8 @@ An MCP server that answers questions about [GD-VAE](https://github.com/gd-vae/gd
 
 The retrieval pipeline (chunking, hybrid search, re-ranking) is built from scratch rather than wrapping a vector-DB SDK, so every stage is a deliberate, explainable design choice rather than a framework default.
 
+**Try it without installing anything:** [gdvae-rag-demo.onrender.com](https://gdvae-rag-demo.onrender.com) — a browser demo over the same pipeline. (First load after idle may take ~30s while the free instance spins up.)
+
 ## Why
 
 Reading a research codebase and its paper cold is slow, and general-purpose LLMs will confidently hallucinate details about a niche, low-citation-count paper they've barely seen in training. This tool grounds every answer in an actual retrieved passage — code, docs, or paper text — with a citation you can go verify.
@@ -63,6 +65,20 @@ fetch → chunk → embed + index (dense & sparse) → hybrid search → re-rank
 5. **Use it** — start a Claude Code session anywhere and just ask a question about GD-VAE (e.g. "what is the adjoint method used for in GD-VAE?"). Claude calls the `search` tool on this server automatically and answers with citations back to the source chunk — no separate step to "run" the server yourself.
 
 To remove it later: `claude mcp remove gdvae-rag -s user`.
+
+## Connecting remotely (no local setup)
+
+The same three tools are also served over streamable-http at **`https://gdvae-rag-mcp.onrender.com/mcp`**, so you can point a Claude Code/Desktop session at the hosted server instead of running anything locally:
+
+```bash
+claude mcp add --transport http gdvae-rag https://gdvae-rag-mcp.onrender.com/mcp
+```
+
+It's a free-tier instance, so the first request after a period of inactivity may take ~30s to wake up.
+
+## Deploying your own instance
+
+`render.yaml` defines both the browser demo and the remote MCP server as Render Blueprint services, each built from the same `Dockerfile` (CPU-only torch — no GPU needed for a corpus this size). On Render: **New → Blueprint**, point it at a fork of this repo, and set `ANTHROPIC_API_KEY` on the demo service (only used for the optional plain-language summary layer — the retrieval tools work without it).
 
 ## Example
 

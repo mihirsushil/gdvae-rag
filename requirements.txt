@@ -5,3 +5,8 @@ rank_bm25
 pypdf
 torch
 requests
+anthropic
+python-dotenv
+starlette
+uvicorn
+jinja2

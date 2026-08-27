@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gdvae-rag</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 720px;
+    margin: 3rem auto;
+    padding: 0 1.25rem;
+    line-height: 1.5;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e8e8e8; background: #111; }
+    .card { border-color: #333 !important; background: #1a1a1a !important; }
+    input[type=text] { background: #1a1a1a !important; color: #e8e8e8 !important; border-color: #333 !important; }
+    .source { color: #9ab !important; }
+    .example { border-color: #333 !important; color: #ccc !important; }
+  }
+  h1 { font-size: 1.15rem; margin-bottom: 0.1rem; }
+  p.tagline { color: #666; margin-top: 0; font-size: 0.92rem; }
+  form { display: flex; gap: 0.5rem; margin: 1.5rem 0; }
+  input[type=text] {
+    flex: 1;
+    padding: 0.6rem 0.8rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+  button {
+    padding: 0.6rem 1.1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 6px;
+    background: #1a1a1a;
+    color: #fff;
+    cursor: pointer;
+  }
+  @media (prefers-color-scheme: dark) { button { background: #e8e8e8; color: #111; } }
+  .examples { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem; }
+  .example {
+    font-size: 0.85rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 999px;
+    color: #555;
+    text-decoration: none;
+  }
+  .card {
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.9rem;
+    background: #fafafa;
+  }
+  .source { font-size: 0.8rem; color: #567; font-weight: 600; margin-bottom: 0.4rem; }
+  pre { white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem; margin: 0; font-family: ui-monospace, SFMono-Regular, monospace; }
+  .empty { color: #888; font-size: 0.9rem; }
+  .summary {
+    border-left: 3px solid #4a7;
+    padding: 0.7rem 1rem;
+    margin-bottom: 1.3rem;
+    background: #f3faf5;
+  }
+  .summary-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #4a7; font-weight: 700; margin-bottom: 0.3rem; }
+  .summary p { margin: 0; font-size: 0.95rem; }
+  .notice { font-size: 0.85rem; color: #888; margin-bottom: 1.3rem; }
+  @media (prefers-color-scheme: dark) {
+    .summary { background: #142a1c !important; border-color: #4a7 !important; }
+  }
+  footer { margin-top: 2.5rem; font-size: 0.8rem; color: #888; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+  <h1>gdvae-rag</h1>
+  <p class="tagline">Hybrid-retrieval RAG over the GD-VAE codebase and papers — dense + sparse search, RRF fusion, cross-encoder rerank, built from scratch.</p>
+
+  <form action="/" method="get">
+    <input type="text" name="q" placeholder="Ask a question about GD-VAE&hellip;" value="{{ query }}" autofocus>
+    <button type="submit">Search</button>
+  </form>
+
+  {% if not query %}
+  <div class="examples">
+    {% for ex in examples %}
+    <a class="example" href="/?q={{ ex | urlencode }}">{{ ex }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if summary %}
+  <div class="summary">
+    <div class="summary-label">Plain-language summary</div>
+    <p>{{ summary }}</p>
+  </div>
+  {% elif rate_limited %}
+  <p class="notice">You've used your 2 free plain-language summaries for this demo — raw cited passages below still work.</p>
+  {% endif %}
+
+  {% if results is not none %}
+    {% if results %}
+      {% for r in results %}
+      <div class="card">
+        <div class="source">
+          [{{ loop.index }}] {{ r.source }}{% if r.section %} § {{ r.section }}{% endif %}{% if r.page %} (page {{ r.page }}){% endif %}
+        </div>
+        <pre>{{ r.text }}</pre>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">No relevant passages found.</p>
+    {% endif %}
+  {% endif %}
+
+  <footer>
+    Source: <a href="https://github.com/mihirsushil/gdvae-rag">github.com/mihirsushil/gdvae-rag</a> &middot; also runs as an MCP server
+  </footer>
+</body>
+</html>
