@@ -7,3 +7,4 @@ data/index.faiss
 data/bm25.pkl
 .DS_Store
 data/stair/
+.env
