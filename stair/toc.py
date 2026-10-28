@@ -138,6 +138,18 @@ def render_toc(leaves: list[Leaf]) -> str:
     return "\n".join(f"{leaf.id} {' > '.join(leaf.path)}" for leaf in leaves)
 
 
+def render_toc_tree(leaves: list[Leaf]) -> str:
+    """Compact table of contents for fine-tuning: shared path prefixes are printed once, as an indented tree."""
+    lines, prev = [], []
+    for leaf in leaves:
+        common = 0
+        while common < min(len(prev), len(leaf.path) - 1) and prev[common] == leaf.path[common]:
+            common += 1
+        lines += ["  " * d + leaf.path[d] for d in range(common, len(leaf.path))]
+        prev = leaf.path
+    return "\n".join(lines)
+
+
 def load_toc() -> list[Leaf]:
     return [Leaf(**d) for d in json.loads(TOC_PATH.read_text())]
 

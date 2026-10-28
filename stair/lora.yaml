@@ -1,0 +1,23 @@
+# STAIR fine-tune on the M3 Pro. LoRA rank and scale follow the paper (r=16, alpha=32 -> scale 2.0);
+# the base model is far smaller than the paper's Mistral-7B so it fits in memory and finishes overnight.
+model: mlx-community/Qwen2.5-1.5B-Instruct-4bit
+train: true
+data: data/stair/sft
+adapter_path: data/stair/adapters
+fine_tune_type: lora
+num_layers: 16
+lora_parameters:
+  rank: 16
+  scale: 2.0
+  dropout: 0.05
+batch_size: 1
+iters: 2276          # 2 epochs over 1,138 training questions
+learning_rate: 1.0e-4
+max_seq_length: 2560
+mask_prompt: true
+grad_checkpoint: true
+steps_per_report: 25
+steps_per_eval: 500
+val_batches: 40
+save_every: 500
+seed: 0

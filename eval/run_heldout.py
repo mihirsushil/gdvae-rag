@@ -1,6 +1,6 @@
 """Score retrievers on the held-out set: does the returned text contain the gold span?
 
-Usage: python eval/run_heldout.py {gdvae-rag|stair-zeroshot}
+Usage: python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned}
 
 Every system is scored by the same rule (eval/gold.py), so a chunk retriever and a section retriever
 are comparable. Because sections are much longer than chunks, the words each system returns are
@@ -42,7 +42,33 @@ def stair_zeroshot():
     return retrieve, retriever.usage
 
 
-SYSTEMS = {"gdvae-rag": gdvae_rag, "stair-zeroshot": stair_zeroshot}
+def _local_toc_retriever(adapter_path):
+    from stair.finetuned import FineTunedToCRetriever
+    from stair.toc import load_toc
+
+    retriever = FineTunedToCRetriever(load_toc(), adapter_path)
+
+    def retrieve(question: str) -> list[dict]:
+        return [{"id": leaf.id, "text": leaf.text} for leaf in retriever.retrieve(question)]
+
+    return retrieve, None
+
+
+def stair_base():
+    # The untrained base model, to show how much the fine-tune adds (the paper's Mistral row).
+    return _local_toc_retriever(None)
+
+
+def stair_finetuned():
+    return _local_toc_retriever(str(REPO_ROOT / "data" / "stair" / "adapters"))
+
+
+SYSTEMS = {
+    "gdvae-rag": gdvae_rag,
+    "stair-zeroshot": stair_zeroshot,
+    "stair-base": stair_base,
+    "stair-finetuned": stair_finetuned,
+}
 
 
 def evaluate(system: str) -> None:
