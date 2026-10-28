@@ -103,7 +103,7 @@ The misses are informative rather than embarrassing: they're mostly paper/citati
 - **The two fail on different questions.** ToC retrieval wins when a heading or function name says what the section holds (`get_statistic_KL` for a KL question); hybrid search wins when the fact is buried in a broadly titled section. Counting a hit from either covers 40/43 (93%).
 - **The scaled-down STAIR fine-tune trails both.** Training took 3 hours on an M3 Pro (1,301 synthetic questions, 2 epochs). It learns which region of the ToC holds the answer but often ranks the neighbouring section first: 13 of its 25 hits are at rank 2. Low per-token validation loss hid this, because the file-name prefix dominates the answer tokens. The paper used a 7B model and far more training.
 
-Reproduce: `python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned}` (the zero-shot run needs `ANTHROPIC_API_KEY`; the fine-tune is `stair/synth.py` then `stair/train.sh`).
+Reproduce: `python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned}` (the zero-shot run needs `ANTHROPIC_API_KEY`; the fine-tune needs Apple Silicon and `pip install mlx-lm`, then `stair/synth.py` and `stair/train.sh`).
 
 ## Design notes
 
