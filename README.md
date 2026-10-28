@@ -88,6 +88,23 @@ The misses are informative rather than embarrassing: they're mostly paper/citati
 
 **Spot check — why hybrid, not just one retriever:** querying the exact function name `map_clifford_torus`, BM25 alone now finds `src/geo_map.py` (tokenization was fixed to stop gluing trailing punctuation like `(input,params):` onto identifiers — see `retrieval/tokenize.py` and `tests/test_retrieval.py`), and dense embeddings find it immediately on semantic similarity regardless. Hybrid fusion puts the correct file in 3 of the top 5 slots. Before the fix, BM25 alone completely missed it — a real illustration of why relying on a single retrieval strategy, or trusting a naive tokenizer, is risky.
 
+## Comparison with STAIR
+
+[STAIR](https://arxiv.org/abs/2609.03874) (IBM) retrieves by reading a document's table of contents instead of searching chunks: a model is LoRA fine-tuned to map a question to the leaf section that answers it. To test whether document structure beats this pipeline, the corpus was turned into a 163-leaf table of contents (`stair/toc.py`: PDF outlines, markdown headings, top-level Python defs/classes) and three retrievers were scored on 43 new held-out questions (`eval/heldout.jsonl`). A hit means the returned text contains the gold passage (`eval/gold.py`), so chunk and section retrievers are scored by the same rule.
+
+| System | Hit@1 | Hit@3 | Median words returned |
+|---|---|---|---|
+| gdvae-rag (top 5 chunks) | 53.5% | 69.8% | 1,577 |
+| Zero-shot ToC: Claude Haiku 5.5 picks 3 leaves (`stair/zeroshot.py`) | 58.1% | 72.1% | 2,141 |
+| Qwen2.5-1.5B, untrained | 4.7% | 7.0% | 1,541 |
+| Qwen2.5-1.5B, STAIR LoRA fine-tune on MLX (`stair/finetuned.py`) | 14.0% | 58.1% | 2,084 |
+
+- **Zero-shot ToC retrieval ties the pipeline** for about $0.01 across all 43 questions. A one-question gap at Hit@3 is noise on a set this small.
+- **The two fail on different questions.** ToC retrieval wins when a heading or function name says what the section holds (`get_statistic_KL` for a KL question); hybrid search wins when the fact is buried in a broadly titled section. Counting a hit from either covers 40/43 (93%).
+- **The scaled-down STAIR fine-tune trails both.** Training took 3 hours on an M3 Pro (1,301 synthetic questions, 2 epochs). It learns which region of the ToC holds the answer but often ranks the neighbouring section first: 13 of its 25 hits are at rank 2. Low per-token validation loss hid this, because the file-name prefix dominates the answer tokens. The paper used a 7B model and far more training.
+
+Reproduce: `python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned}` (the zero-shot run needs `ANTHROPIC_API_KEY`; the fine-tune is `stair/synth.py` then `stair/train.sh`).
+
 ## Design notes
 
 - **Local embeddings over an API** — free, reproducible, no key management, and the corpus (a few hundred chunks) is trivially small for CPU inference
