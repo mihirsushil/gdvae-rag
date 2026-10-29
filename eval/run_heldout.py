@@ -1,6 +1,6 @@
 """Score retrievers on the held-out set: does the returned text contain the gold span?
 
-Usage: python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned}
+Usage: python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned|stair-base-3b|stair-finetuned-3b}
 
 Every system is scored by the same rule (eval/gold.py), so a chunk retriever and a section retriever
 are comparable. Because sections are much longer than chunks, the words each system returns are
@@ -18,6 +18,8 @@ sys.path.insert(0, str(REPO_ROOT))
 from eval.gold import contains_span, load_heldout  # noqa: E402
 
 RESULTS_DIR = REPO_ROOT / "eval" / "results"
+QWEN_1_5B = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+QWEN_3B = "mlx-community/Qwen2.5-3B-Instruct-4bit"
 
 
 def gdvae_rag():
@@ -42,11 +44,11 @@ def stair_zeroshot():
     return retrieve, retriever.usage
 
 
-def _local_toc_retriever(adapter_path):
+def _local_toc_retriever(model, adapter_path):
     from stair.finetuned import FineTunedToCRetriever
     from stair.toc import load_toc
 
-    retriever = FineTunedToCRetriever(load_toc(), adapter_path)
+    retriever = FineTunedToCRetriever(load_toc(), model, adapter_path)
 
     def retrieve(question: str) -> list[dict]:
         return [{"id": leaf.id, "text": leaf.text} for leaf in retriever.retrieve(question)]
@@ -56,11 +58,20 @@ def _local_toc_retriever(adapter_path):
 
 def stair_base():
     # The untrained base model, to show how much the fine-tune adds (the paper's Mistral row).
-    return _local_toc_retriever(None)
+    return _local_toc_retriever(QWEN_1_5B, None)
 
 
 def stair_finetuned():
-    return _local_toc_retriever(str(REPO_ROOT / "data" / "stair" / "adapters"))
+    return _local_toc_retriever(QWEN_1_5B, str(REPO_ROOT / "data" / "stair" / "adapters"))
+
+
+def stair_base_3b():
+    return _local_toc_retriever(QWEN_3B, None)
+
+
+def stair_finetuned_3b():
+    # The checkpoint stair/select_checkpoint.py picked on the synthetic valid set, never on this held-out set.
+    return _local_toc_retriever(QWEN_3B, str(REPO_ROOT / "data" / "stair" / "adapters_3b" / "best"))
 
 
 SYSTEMS = {
@@ -68,6 +79,8 @@ SYSTEMS = {
     "stair-zeroshot": stair_zeroshot,
     "stair-base": stair_base,
     "stair-finetuned": stair_finetuned,
+    "stair-base-3b": stair_base_3b,
+    "stair-finetuned-3b": stair_finetuned_3b,
 }
 
 

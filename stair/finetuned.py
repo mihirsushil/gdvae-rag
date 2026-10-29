@@ -5,6 +5,9 @@ only ever return a section that exists. The prompt is encoded once per question;
 on top of that cached prompt and trimmed off again.
 """
 
+import json
+from pathlib import Path
+
 import mlx.core as mx
 import mlx.nn as nn
 from mlx_lm import load
@@ -13,13 +16,17 @@ from mlx_lm.models.cache import make_prompt_cache, trim_prompt_cache
 from stair.prompt import target, user_message
 from stair.toc import Leaf, render_toc_tree
 
-BASE_MODEL = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
 TOP_K = 3
 
 
+def base_model(adapter_path: str) -> str:
+    """The model an adapter was trained on, as mlx_lm recorded it next to the weights."""
+    return json.loads((Path(adapter_path) / "adapter_config.json").read_text())["model"]
+
+
 class FineTunedToCRetriever:
-    def __init__(self, leaves: list[Leaf], adapter_path: str | None):
-        self.model, self.tokenizer = load(BASE_MODEL, adapter_path=adapter_path)
+    def __init__(self, leaves: list[Leaf], model: str, adapter_path: str | None):
+        self.model, self.tokenizer = load(model, adapter_path=adapter_path)
         self.toc = render_toc_tree(leaves)
         eos = self.tokenizer.eos_token_id
         self.candidates = [(leaf, self.tokenizer.encode(target(leaf), add_special_tokens=False) + [eos]) for leaf in leaves]

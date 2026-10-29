@@ -2,11 +2,15 @@
 
 Writes data/stair/synth.jsonl, one row per question: {"leaf_id", "question"}. Questions that closely echo a
 held-out eval question are dropped, so the fine-tune never trains on the test set.
+
+`--more` writes a second, different batch to data/stair/synth_more.jsonl: Claude sees the questions already
+written for each leaf and is asked for new ones, and near-copies of those are dropped too.
 """
 
 import json
 import re
 import sys
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -23,6 +27,7 @@ QUESTIONS_PER_LEAF = 8
 MAX_LEAF_WORDS = 4000
 OVERLAP_LIMIT = 0.6  # Jaccard over content words; above this a question counts as a near-copy of a held-out one
 SYNTH_PATH = REPO_ROOT / "data" / "stair" / "synth.jsonl"
+SYNTH_MORE_PATH = REPO_ROOT / "data" / "stair" / "synth_more.jsonl"
 
 INSTRUCTIONS = f"""You write training questions for a retriever over a research corpus about GD-VAE \
 (geometric dynamic variational autoencoders): its code, docs and related papers.
@@ -51,14 +56,18 @@ def _jaccard(a: set[str], b: set[str]) -> float:
     return len(a & b) / len(a | b) if a | b else 0.0
 
 
-def generate(client: anthropic.Anthropic, leaf: Leaf) -> tuple[list[str], anthropic.types.Usage]:
+def generate(client: anthropic.Anthropic, leaf: Leaf, existing: list[str]) -> tuple[list[str], anthropic.types.Usage]:
     text = " ".join(leaf.text.split()[:MAX_LEAF_WORDS])
+    content = f"Location: {' > '.join(leaf.path)}\n\nSection text:\n{text}"
+    if existing:
+        listed = "\n".join(f"- {q}" for q in existing)
+        content += f"\n\nQuestions already written for this section. Write different ones, on other details:\n{listed}"
     response = client.messages.create(
         model=MODEL,
         max_tokens=4096,
         system=INSTRUCTIONS,
         output_config={"effort": "low", "format": {"type": "json_schema", "schema": SCHEMA}},
-        messages=[{"role": "user", "content": f"Location: {' > '.join(leaf.path)}\n\nSection text:\n{text}"}],
+        messages=[{"role": "user", "content": content}],
     )
     if response.stop_reason != "end_turn":
         raise RuntimeError(f"{leaf.id}: unexpected stop_reason {response.stop_reason!r} (request {response._request_id})")
@@ -67,27 +76,41 @@ def generate(client: anthropic.Anthropic, leaf: Leaf) -> tuple[list[str], anthro
 
 
 def main() -> None:
+    more = sys.argv[1:] == ["--more"]
+    out_path = SYNTH_MORE_PATH if more else SYNTH_PATH
     leaves = load_toc()
     heldout = [_content_words(q["question"]) for q in load_heldout()]
+    existing = defaultdict(list)
+    if more:
+        for line in SYNTH_PATH.read_text().splitlines():
+            row = json.loads(line)
+            existing[row["leaf_id"]].append(row["question"])
     client = anthropic.Anthropic()
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(lambda leaf: generate(client, leaf), leaves))
+        results = list(pool.map(lambda leaf: generate(client, leaf, existing[leaf.id]), leaves))
 
-    rows, dropped = [], 0
+    rows, dropped, repeats = [], 0, 0
     usage = {"input": 0, "output": 0}
     for leaf, (questions, u) in zip(leaves, results):
         usage["input"] += u.input_tokens
         usage["output"] += u.output_tokens
+        seen = [_content_words(q) for q in existing[leaf.id]]
         for q in questions:
-            if max(_jaccard(_content_words(q), h) for h in heldout) > OVERLAP_LIMIT:
+            words = _content_words(q)
+            if max(_jaccard(words, h) for h in heldout) > OVERLAP_LIMIT:
                 dropped += 1
+                continue
+            if any(_jaccard(words, s) > OVERLAP_LIMIT for s in seen):
+                repeats += 1
                 continue
             rows.append({"leaf_id": leaf.id, "question": q})
 
-    SYNTH_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SYNTH_PATH.write_text("".join(json.dumps(r) + "\n" for r in rows))
-    print(f"wrote {len(rows)} questions for {len(leaves)} leaves to {SYNTH_PATH.relative_to(REPO_ROOT)}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    print(f"wrote {len(rows)} questions for {len(leaves)} leaves to {out_path.relative_to(REPO_ROOT)}")
     print(f"  dropped {dropped} near-copies of held-out questions (Jaccard > {OVERLAP_LIMIT})")
+    if more:
+        print(f"  dropped {repeats} near-copies of the leaf's existing questions")
     print(f"  tokens: {usage}")
 
 

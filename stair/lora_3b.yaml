@@ -1,0 +1,23 @@
+# STAIR run 2: the 3B model on twice the synthetic questions. Same LoRA settings as run 1 (stair/lora.yaml)
+# so the model and the data are what changed.
+model: mlx-community/Qwen2.5-3B-Instruct-4bit
+train: true
+data: data/stair/sft_more
+adapter_path: data/stair/adapters_3b
+fine_tune_type: lora
+num_layers: 16
+lora_parameters:
+  rank: 16
+  scale: 2.0
+  dropout: 0.05
+batch_size: 1
+iters: 3000          # overridden by stair/train_3b.sh, which sizes the run from a timing pilot
+learning_rate: 1.0e-4
+max_seq_length: 2560
+mask_prompt: true
+grad_checkpoint: true
+steps_per_report: 25
+steps_per_eval: 1000
+val_batches: 40
+save_every: 1000     # fewer checkpoints: each one costs about 15 minutes to score in select_checkpoint.py
+seed: 0
