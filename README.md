@@ -98,12 +98,16 @@ The misses are informative rather than embarrassing: they're mostly paper/citati
 | Zero-shot ToC: Claude Haiku 5.5 picks 3 leaves (`stair/zeroshot.py`) | 58.1% | 72.1% | 2,141 |
 | Qwen2.5-1.5B, untrained | 4.7% | 7.0% | 1,541 |
 | Qwen2.5-1.5B, STAIR LoRA fine-tune on MLX (`stair/finetuned.py`) | 14.0% | 58.1% | 2,084 |
+| Qwen2.5-3B, untrained | 11.6% | 16.3% | 526 |
+| Qwen2.5-3B, STAIR LoRA fine-tune, twice the training questions | 25.6% | 62.8% | 2,465 |
 
 - **Zero-shot ToC retrieval ties the pipeline** for about $0.01 across all 43 questions. A one-question gap at Hit@3 is noise on a set this small.
 - **The two fail on different questions.** ToC retrieval wins when a heading or function name says what the section holds (`get_statistic_KL` for a KL question); hybrid search wins when the fact is buried in a broadly titled section. Counting a hit from either covers 40/43 (93%).
-- **The scaled-down STAIR fine-tune trails both.** Training took 3 hours on an M3 Pro (1,301 synthetic questions, 2 epochs). It learns which region of the ToC holds the answer but often ranks the neighbouring section first: 13 of its 25 hits are at rank 2. Low per-token validation loss hid this, because the file-name prefix dominates the answer tokens. The paper used a 7B model and far more training.
+- **The scaled-down STAIR fine-tune trails both.** The first run (1.5B model, 1,301 synthetic questions, 2 epochs, 3 hours on an M3 Pro) learned which region of the ToC holds the answer but often ranked the neighbouring section first: 13 of its 25 hits were at rank 2. Low per-token validation loss hid this, because the file-name prefix dominates the answer tokens.
+- **A second run on the 3B model nearly doubled top-1 accuracy** (6 to 11 questions) with 2,428 synthetic questions, 3,100 steps and 6.7 hours of training, keeping the checkpoint that ranked leaves best on the synthetic valid set (`stair/select_checkpoint.py`, `stair/train_3b.sh`). Top-3 barely moved (25 to 27 of 43), so the fine-tune still trails both systems above. Its two unique hits bring the three-system union to 42/43.
+- **Limits of this reproduction:** the paper fine-tuned a 7B model with far more training; here everything ran on one 18 GB laptop, which capped the model at 3B and training at about 1.3 epochs per night. The eval has 43 held-out questions, so a gap of two or three questions is within noise.
 
-Reproduce: `python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned}` (the zero-shot run needs `ANTHROPIC_API_KEY`; the fine-tune needs Apple Silicon and `pip install mlx-lm`, then `stair/synth.py` and `stair/train.sh`).
+Reproduce: `python eval/run_heldout.py {gdvae-rag|stair-zeroshot|stair-base|stair-finetuned|stair-base-3b|stair-finetuned-3b}` (the zero-shot run needs `ANTHROPIC_API_KEY`; the fine-tune needs Apple Silicon and `pip install mlx-lm`, then `stair/synth.py` and `stair/train.sh`; for the 3B run, `stair/synth.py --more` and `stair/train_3b.sh`).
 
 ## Design notes
 
